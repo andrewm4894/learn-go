@@ -17,6 +17,7 @@ var wg sync.WaitGroup
 // Get api response (expects format=csv) and make a dataframe from it
 func getDf(url string, c chan dataframe.DataFrame) {
 
+	// Need to make sure we tell wait group we done
 	defer wg.Done()
 
 	// Pull chart name from the url
@@ -47,11 +48,12 @@ func getDf(url string, c chan dataframe.DataFrame) {
 func main() {
 
 	// Define a list of api calls we want data from
+	// In this example we have an api call for each chart data we want in our df
 	urls := []string{
-		"https://london.my-netdata.io/api/v1/data?chart=system.cpu&format=csv&after=-5",
-		"https://london.my-netdata.io/api/v1/data?chart=system.net&format=csv&after=-5",
-		"https://london.my-netdata.io/api/v1/data?chart=system.load&format=csv&after=-5",
-		"https://london.my-netdata.io/api/v1/data?chart=system.io&format=csv&after=-5",
+		"https://london.my-netdata.io/api/v1/data?chart=system.cpu&format=csv&after=-10",
+		"https://london.my-netdata.io/api/v1/data?chart=system.net&format=csv&after=-10",
+		"https://london.my-netdata.io/api/v1/data?chart=system.load&format=csv&after=-10",
+		"https://london.my-netdata.io/api/v1/data?chart=system.io&format=csv&after=-10",
 	}
 
 	// Create a channel of dataframes the size of number of api calls we need to make
@@ -75,10 +77,13 @@ func main() {
 		df = df.OuterJoin(dfTmp, "time")
 	}
 
+	// Sort based on time
+	df = df.Arrange(dataframe.Sort("time"))
+
 	// Print df
-	fmt.Println(df)
+	fmt.Println(df, 10, 5)
 
 	// Describe df
-	fmt.Println(df.Describe())
+	//fmt.Println(df.Describe())
 
 }
