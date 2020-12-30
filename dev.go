@@ -5,16 +5,17 @@ import (
 	"fmt"
 	"strings"
 
-	imports "github.com/rocketlaunchr/dataframe-go"
+	imports "github.com/rocketlaunchr/dataframe-go/imports"
 )
 
 func main() {
 
-	csvStr := `colA,colB
-	1,"First"
-	2,"Second"
-	3,"Third"
-	4,"Fourth"`
+	csvStr := `
+colA,colB
+1,"First"
+2,"Second"
+3,"Third"
+4,"Fourth"`
 
 	ctx := context.Background()
 
