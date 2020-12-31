@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"sync"
 
+	"github.com/sjwhitworth/golearn/base"
 	"github.com/sjwhitworth/golearn/trees"
 	"gonum.org/v1/gonum/mat"
 )
@@ -20,7 +21,7 @@ var LagsN = 2
 // Urls define a list of api calls we want data from
 var Urls = [1]string{
 	//"https://london.my-netdata.io/api/v1/data?chart=system.cpu&format=json&after=-4",
-	"https://london.my-netdata.io/api/v1/data?chart=system.net&format=json&after=-20",
+	"https://london.my-netdata.io/api/v1/data?chart=system.net&format=json&after=-10",
 	//"https://london.my-netdata.io/api/v1/data?chart=system.load&format=json&after=-4",
 	//"https://london.my-netdata.io/api/v1/data?chart=system.io&format=json&after=-3",
 }
@@ -102,19 +103,27 @@ func main() {
 		// Print matrix x
 		fmt.Printf("X:\n %v\n\n", mat.Formatted(x, mat.Prefix(" "), mat.Excerpt(10)))
 
-		fmt.Println(x.Dims)
-		//instances := base.InstancesFromMat64(1, 1, x)
+		// Create instances
+		r, c := x.Dims()
+		instances := base.InstancesFromMat64(r, c, mat.DenseCopyOf(x))
 
-		forest := trees.NewIsolationForest(10, 10, 10)
-		forest.Fit(x)
-		preds := forest.Predict(x)
+		// Look at instances
+		fmt.Println(instances)
+
+		// Create forest
+		forest := trees.NewIsolationForest(10, 10, 100)
+
+		// Fit forest
+		forest.Fit(instances)
+
+		// Predict on instances to get scores
+		preds := forest.Predict(instances)
 
 		// Let's find the average and minimum Anomaly Score for normal data
 		var avgScore float64
 		var min float64
 		min = 1
-
-		for i := 0; i < 1000; i++ {
+		for i := 0; i < len(preds); i++ {
 			temp := preds[i]
 			avgScore += temp
 			if temp < min {
