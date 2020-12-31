@@ -66,7 +66,7 @@ func main() {
 	for data := range dataChannel {
 
 		// Flatten data into one slice, ignoring the first column which is "time", and adding lags_n
-		nLags := 1
+		nLags := 3
 		nData := len(data.Data)
 		nDims := len(data.Labels) - 1
 		nCols := nDims + (nLags * nDims)
@@ -77,23 +77,25 @@ func main() {
 		i := 0
 		for t := range data.Data {
 			fmt.Println(data.Data[t])
-			if i >= nLags {
+			if t >= nLags {
 				for dim := range data.Data[t] {
-					for l := 0; l <= nLags; l++ {
-						if dim > 0 {
-							dataFlat[i+dim+l] = data.Data[t-l][dim]
+					if dim > 0 {
+						for l := 0; l <= nLags; l++ {
+							dataFlat[i] = data.Data[t-l][dim]
+							i++
 						}
 					}
 				}
 			}
-			i++
 		}
+
+		fmt.Printf("%v\n", dataFlat)
 
 		// Create gonum dense matrix from dataFlat
 		X := mat.NewDense(nRows, nCols, dataFlat)
 
 		// Print matrix X
-		fmt.Printf("X: %v\n\n", mat.Formatted(X, mat.Prefix(" "), mat.Excerpt(10)))
+		fmt.Printf("X:\n %v\n\n", mat.Formatted(X, mat.Prefix(" "), mat.Excerpt(10)))
 
 	}
 
