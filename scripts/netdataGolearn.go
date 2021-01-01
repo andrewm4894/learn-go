@@ -77,14 +77,12 @@ func getX(url string, nLags int, c chan mat.Dense) {
 	// Create gonum dense matrix from dataFlat
 	x := mat.NewDense(nRows, nCols, dataFlat)
 
-	// Create vector of zeros
+	// Create vector of zeros to use as a dummy class attribute for golearn
+	var xFinal mat.Dense
 	zeros := make([]float64, nRows)
 	z := mat.NewVecDense(nRows, zeros)
-	//fmt.Printf("z:\n %v\n\n", mat.Formatted(z, mat.Prefix(" "), mat.Excerpt(10)))
-
-	var xFinal mat.Dense
 	xFinal.Augment(z, x)
-	fmt.Printf("xFinal:\n %v", xFinal)
+	//fmt.Printf("xFinal:\n %v", xFinal)
 
 	// Send to channel
 	c <- xFinal
