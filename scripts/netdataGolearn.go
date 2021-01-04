@@ -15,24 +15,17 @@ import (
 // Create a wait group
 var wg sync.WaitGroup
 
-// LagsN defines number of lags to make
-var LagsN = 2
-
-// Urls define a list of api calls we want data from
-var Urls = [1]string{
-	//"https://london.my-netdata.io/api/v1/data?chart=system.cpu&format=json&after=-4",
-	"https://london.my-netdata.io/api/v1/data?chart=system.net&format=json&after=-10",
-	//"https://london.my-netdata.io/api/v1/data?chart=system.load&format=json&after=-4",
-	//"https://london.my-netdata.io/api/v1/data?chart=system.io&format=json&after=-3",
-}
-
 type netdataResponse struct {
 	Labels []string    `json:"labels"`
 	Data   [][]float64 `json:"data"`
 }
 
-// Get a gonum matrix from the netdata api with specified nLags
-func getX(url string, nLags int, c chan mat.Dense) {
+// Get a instances from the netdata api
+func getInstances(conf map[string]interface{}, c chan base.FixedDataGrid) {
+
+	url := "https://" + conf["host"].(string) + "/api/v1/data?chart=" + conf["chart"].(string) + "&format=json&after=" + conf["trainAfter"].(string) + "&before=" + conf["trainBefore"].(string)
+	lags := conf["lags"].(int)
+	fmt.Println(url)
 
 	// Create data to store response
 	var data netdataResponse
@@ -50,8 +43,8 @@ func getX(url string, nLags int, c chan mat.Dense) {
 	// Flatten data into one slice, ignoring the first column which is "time", and adding nLags
 	nData := len(data.Data)
 	nDims := len(data.Labels) - 1
-	nCols := nDims + (nLags * nDims)
-	nRows := nData - nLags
+	nCols := nDims + (lags * nDims)
+	nRows := nData - lags
 
 	// Make flat slice to put data into
 	dataFlat := make([]float64, nCols*nRows)
@@ -60,12 +53,12 @@ func getX(url string, nLags int, c chan mat.Dense) {
 	i := 0
 	for t := range data.Data {
 		fmt.Println(data.Data[t])
-		if t >= nLags {
+		if t >= lags {
 			for dim := range data.Data[t] {
 				// Ignore time which is the first dim in the response
 				if dim > 0 {
 					// Add each lag
-					for l := 0; l <= nLags; l++ {
+					for l := 0; l <= lags; l++ {
 						dataFlat[i] = data.Data[t-l][dim]
 						i++
 					}
@@ -82,40 +75,47 @@ func getX(url string, nLags int, c chan mat.Dense) {
 	zeros := make([]float64, nRows)
 	z := mat.NewVecDense(nRows, zeros)
 	xFinal.Augment(z, x)
-	//fmt.Printf("xFinal:\n %v", xFinal)
+
+	// Create instances
+	nrow, ncol := xFinal.Dims()
+	instances := base.NewDenseCopy(base.InstancesFromMat64(nrow, ncol, &xFinal))
+
+	// Set a class attribute
+	attrArray := instances.AllAttributes()
+	instances.AddClassAttribute(attrArray[0])
 
 	// Send to channel
-	c <- xFinal
+	c <- instances
 
 }
 
 func main() {
 
+	// define config
+	var host = "london.my-netdata.io"
+	var trainAfter = "-10"
+	var trainBefore = "0"
+	var lags = 2
+	config := map[string]map[string]interface{}{
+		"1": {"host": host, "chart": "system.net", "trainAfter": trainAfter, "trainBefore": trainBefore, "lags": lags},
+	}
+
 	// Create a channel the size of number of api calls we need to make
-	dataChannel := make(chan mat.Dense, len(Urls))
+	trainDataChannel := make(chan base.FixedDataGrid, len(config))
 
 	// Kick off a go routine for each url
-	for _, url := range Urls {
+	for _, conf := range config {
 		wg.Add(1)
-		go getX(url, LagsN, dataChannel)
+		go getInstances(conf, trainDataChannel)
 	}
 
 	// Handle synchronization of channel
 	wg.Wait()
-	close(dataChannel)
+	close(trainDataChannel)
 
 	// Pull each response from channel
-	for x := range dataChannel {
+	for instances := range trainDataChannel {
 
-		// Create instances
-		r, c := x.Dims()
-		instances := base.NewDenseCopy(base.InstancesFromMat64(r, c, &x))
-
-		// Set a class attribute
-		attrArray := instances.AllAttributes()
-		instances.AddClassAttribute(attrArray[0])
-
-		// Look at instances
 		fmt.Println(instances)
 
 		// Create forest
