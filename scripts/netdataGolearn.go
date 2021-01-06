@@ -21,11 +21,10 @@ type netdataResponse struct {
 }
 
 // Get a instances from the netdata api
-func getInstances(conf map[string]interface{}, c chan base.FixedDataGrid) {
+func getInstances(host, chart, after, before string, lags int, c chan base.FixedDataGrid) {
 
-	url := "https://" + conf["host"].(string) + "/api/v1/data?chart=" + conf["chart"].(string) + "&format=json&after=" + conf["trainAfter"].(string) + "&before=" + conf["trainBefore"].(string)
-	lags := conf["lags"].(int)
-	fmt.Println(url)
+	url := "https://" + host + "/api/v1/data?chart=" + chart + "&format=json&after=" + after + "&before=" + before
+	//fmt.Println(url)
 
 	// Create data to store response
 	var data netdataResponse
@@ -89,15 +88,28 @@ func getInstances(conf map[string]interface{}, c chan base.FixedDataGrid) {
 
 }
 
+func fitModel(instances base.FixedDataGrid) trees.IsolationForest {
+
+	// Create forest
+	forest := trees.NewIsolationForest(10, 10, 100)
+
+	// Fit forest
+	forest.Fit(instances)
+
+	return forest
+
+}
+
 func main() {
 
 	// define config
 	var host = "london.my-netdata.io"
 	var trainAfter = "-10"
 	var trainBefore = "0"
-	var lags = 2
+	var lags = 1
 	config := map[string]map[string]interface{}{
-		"1": {"host": host, "chart": "system.net", "trainAfter": trainAfter, "trainBefore": trainBefore, "lags": lags},
+		//"1": {"host": host, "chart": "system.net", "trainAfter": trainAfter, "trainBefore": trainBefore, "lags": lags},
+		"2": {"host": host, "chart": "system.ram", "trainAfter": trainAfter, "trainBefore": trainBefore, "lags": lags},
 	}
 
 	// Create a channel the size of number of api calls we need to make
@@ -106,7 +118,14 @@ func main() {
 	// Kick off a go routine for each url
 	for _, conf := range config {
 		wg.Add(1)
-		go getInstances(conf, trainDataChannel)
+		go getInstances(
+			conf["host"].(string),
+			conf["chart"].(string),
+			conf["trainAfter"].(string),
+			conf["trainBefore"].(string),
+			conf["lags"].(int),
+			trainDataChannel,
+		)
 	}
 
 	// Handle synchronization of channel
@@ -118,33 +137,13 @@ func main() {
 
 		fmt.Println(instances)
 
-		// Create forest
-		forest := trees.NewIsolationForest(10, 10, 100)
-
-		// Fit forest
-		forest.Fit(instances)
+		// Fit model
+		forest := fitModel(instances)
 
 		// Predict on instances to get scores
 		preds := forest.Predict(instances)
 
-		// Let's find the average and minimum Anomaly Score for normal data
-		var avgScore float64
-		var min float64
-		min = 1
-		for i := 0; i < len(preds); i++ {
-			temp := preds[i]
-			avgScore += temp
-			if temp < min {
-				min = temp
-			}
-		}
-		fmt.Println(avgScore / 1000)
-		fmt.Println(min)
-
-		fmt.Println("Anomaly Scores are ")
-		for i := range preds {
-			fmt.Println(preds[i])
-		}
+		fmt.Println(preds)
 
 	}
 
