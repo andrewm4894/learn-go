@@ -105,11 +105,11 @@ func main() {
 	var host = "london.my-netdata.io"
 	var trainAfter = "-14400"
 	var trainBefore = "0"
-	var lags = 3
+	var lags = 2
 	var diffs = 1
 	config := map[string]map[string]interface{}{
 		"1": {"host": host, "chart": "system.net", "trainAfter": trainAfter, "trainBefore": trainBefore, "lags": lags, "diffs": diffs},
-		"2": {"host": host, "chart": "system.ram", "trainAfter": trainAfter, "trainBefore": trainBefore, "lags": lags, "diffs": diffs},
+		//"2": {"host": host, "chart": "system.ram", "trainAfter": trainAfter, "trainBefore": trainBefore, "lags": lags, "diffs": diffs},
 	}
 
 	// Create map to store trained models in
@@ -156,7 +156,8 @@ func main() {
 			go getInstances(
 				conf["host"].(string),
 				conf["chart"].(string),
-				string(-1*conf["lags"].(int)+conf["diffs"].(int)),
+				//string(-1*conf["lags"].(int)+conf["diffs"].(int)),
+				"-20",
 				"0",
 				conf["lags"].(int),
 				conf["diffs"].(int),
@@ -170,6 +171,8 @@ func main() {
 		preds := make(map[string]float64)
 		for predInstancesMap := range predDataChannel {
 			for predInstancesKey, predInstancesData := range predInstancesMap {
+				fmt.Println(predInstancesKey)
+				fmt.Println(predInstancesData)
 				model := trainedModels[predInstancesKey]
 				recentPreds := model.Predict(predInstancesData)
 				preds[predInstancesKey] = recentPreds[len(recentPreds)-1]
@@ -180,7 +183,7 @@ func main() {
 		fmt.Printf("Anomaly scores as at: %v\n", time.Now().Unix())
 		fmt.Println(preds)
 
-		time.Sleep(1 * time.Second)
+		time.Sleep(500 * time.Millisecond)
 
 	}
 
