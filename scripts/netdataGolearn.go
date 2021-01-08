@@ -103,26 +103,26 @@ func main() {
 
 	// define config for each chart we want and anomaly score for
 	var host = "london.my-netdata.io"
-	var trainAfter = "-14400"
+	var trainAfter = "-100"
 	var trainBefore = "0"
 	var lags = 2
 	var diffs = 1
 	config := map[string]map[string]interface{}{
 		"1": {"host": host, "chart": "system.net", "trainAfter": trainAfter, "trainBefore": trainBefore, "lags": lags, "diffs": diffs},
-		//"2": {"host": host, "chart": "system.ram", "trainAfter": trainAfter, "trainBefore": trainBefore, "lags": lags, "diffs": diffs},
+		"2": {"host": host, "chart": "system.ram", "trainAfter": trainAfter, "trainBefore": trainBefore, "lags": lags, "diffs": diffs},
 	}
 
 	// Create map to store trained models in
 	trainedModels := make(map[string]trees.IsolationForest, len(config))
-
-	// Get training data
-	trainDataChannel := make(chan map[string]base.FixedDataGrid, len(config))
 
 	// Run for nSteps
 	for i := 0; i <= nSteps; i++ {
 
 		// Train models
 		if i%trainEvery == 0 {
+
+			// Get training data
+			trainDataChannel := make(chan map[string]base.FixedDataGrid, len(config))
 
 			// Get training data
 			for _, conf := range config {
@@ -143,6 +143,7 @@ func main() {
 			// Train each model and save it to trainedModels
 			for trainInstancesMap := range trainDataChannel {
 				for trainInstancesKey, trainInstancesData := range trainInstancesMap {
+					fmt.Printf("\nTraining %v model at: %v (step %v)\n", trainInstancesKey, time.Now().Unix(), i)
 					trainedModels[trainInstancesKey] = fitModel(trainInstancesData, 10, 10, 100)
 				}
 			}
@@ -171,16 +172,17 @@ func main() {
 		preds := make(map[string]float64)
 		for predInstancesMap := range predDataChannel {
 			for predInstancesKey, predInstancesData := range predInstancesMap {
-				fmt.Println(predInstancesKey)
-				fmt.Println(predInstancesData)
+				//fmt.Println(predInstancesKey)
+				//fmt.Println(predInstancesData)
 				model := trainedModels[predInstancesKey]
 				recentPreds := model.Predict(predInstancesData)
-				preds[predInstancesKey] = recentPreds[len(recentPreds)-1]
+				//fmt.Println(recentPreds)
+				preds[predInstancesKey] = recentPreds[len(recentPreds)-1-diffs]
 			}
 		}
 
 		// Print scores at each step
-		fmt.Printf("Anomaly scores as at: %v\n", time.Now().Unix())
+		fmt.Printf("\nAnomaly scores (step %v) as at: %v\n", i, time.Now().Unix())
 		fmt.Println(preds)
 
 		time.Sleep(500 * time.Millisecond)
