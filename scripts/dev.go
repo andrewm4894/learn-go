@@ -1,32 +1,19 @@
 package main
 
 import (
-	"context"
 	"fmt"
-	"strings"
-
-	imports "github.com/rocketlaunchr/dataframe-go/imports"
 )
 
 func main() {
-
-	csvStr := `
-colA,colB
-1,"First"
-2,"Second"
-3,"Third"
-4,"Fourth"`
-
-	ctx := context.Background()
-
-	df, err := imports.LoadFromCSV(ctx, strings.NewReader(csvStr), imports.CSVLoadOptions{
-		DictateDataType: map[string]interface{}{
-			"colA": int64(0),
-			"colB": "",
-		},
-	})
-
-	fmt.Println(err)
-	fmt.Println(df)
-
+	nSmooth := 2
+	fmt.Println(nSmooth)
+	x := [][]float64{1., 2., 3., 4., 5., 6., 7., 8., 9., 10.}
+	fmt.Println(x)
+	//for i := range x {
+	//	if i > nSmooth {
+	//		fmt.Println(stat.Mean(x[i-nSmooth:i], nil))
+	//	}
+	//}
+	//mean := stat.Mean(x, nil)
+	//fmt.Printf("The mean of x is %.4f\n", mean)
 }

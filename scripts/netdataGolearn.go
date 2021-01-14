@@ -23,7 +23,7 @@ type netdataResponse struct {
 }
 
 // Get instances from the netdata api
-func getInstances(host, chart, after, before string, lags, diffs int, c chan map[string]base.FixedDataGrid) {
+func getInstances(host, chart, after, before string, lags, diffs, smoothing int, c chan map[string]base.FixedDataGrid) {
 
 	// Need to make sure we tell wait group we done
 	defer wg.Done()
@@ -105,11 +105,12 @@ func main() {
 	var host = "london.my-netdata.io"
 	var trainAfter = "-100"
 	var trainBefore = "0"
-	var lags = 2
-	var diffs = 1
+	var lags = 1
+	var diffs = 0
+	var smoothing = 2
 	config := map[string]map[string]interface{}{
-		"1": {"host": host, "chart": "system.net", "trainAfter": trainAfter, "trainBefore": trainBefore, "lags": lags, "diffs": diffs},
-		"2": {"host": host, "chart": "system.ram", "trainAfter": trainAfter, "trainBefore": trainBefore, "lags": lags, "diffs": diffs},
+		"1": {"host": host, "chart": "system.net", "trainAfter": trainAfter, "trainBefore": trainBefore, "lags": lags, "diffs": diffs, "smoothing": smoothing},
+		"2": {"host": host, "chart": "system.ram", "trainAfter": trainAfter, "trainBefore": trainBefore, "lags": lags, "diffs": diffs, "smoothing": smoothing},
 	}
 
 	// Create map to store trained models in
@@ -134,6 +135,7 @@ func main() {
 					conf["trainBefore"].(string),
 					conf["lags"].(int),
 					conf["diffs"].(int),
+					conf["smoothing"].(int),
 					trainDataChannel,
 				)
 			}
@@ -162,6 +164,7 @@ func main() {
 				"0",
 				conf["lags"].(int),
 				conf["diffs"].(int),
+				conf["smoothing"].(int),
 				predDataChannel,
 			)
 		}
